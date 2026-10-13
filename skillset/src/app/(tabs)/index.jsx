@@ -56,7 +56,7 @@ export default function RolesScreen() {
           {showAll ? others.map((entry) => <RoleCard key={entry.role.id} entry={entry} />) : null}
         </View>
       ) : null}
-      <T variant="small">Core skills count 3×, supporting skills 1×. A skill counts fully once it reaches the target level.</T>
+      <T variant="small">Specializations follow the role roadmaps on roadmap.sh. Core skills count 3×, supporting skills 1×, and a skill counts fully once it reaches the target level.</T>
     </Screen>
   );
 }

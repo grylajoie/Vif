@@ -1,12 +1,15 @@
 import { useMemo, useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Linking, Pressable, Text, View } from 'react-native';
+import { router } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import QuickStart from '../../components/QuickStart';
 import {
   BigButton, Card, Field, IconButton, LevelPips, List, PickChip, Screen, SectionHead, T, styles,
 } from '../../components/ui';
-import { CATEGORIES, LEVEL_HINTS, LEVELS, SKILLS } from '../../data/catalog.js';
-import { levelOf, skillCategory, skillName } from '../../lib/engine.js';
+import { CATEGORIES, LEVEL_HINTS, LEVELS, SKILLS, roadmapUrl } from '../../data/catalog.js';
+import {
+  levelOf, rolesUsingSkill, skillCategory, skillDescription, skillName,
+} from '../../lib/engine.js';
 import { useSkillset } from '../../state/SkillsetProvider';
 import { colors, fonts } from '../../theme';
 
@@ -14,12 +17,13 @@ export default function SkillsScreen() {
   const { state, setLevel, addSkill, addCustomSkill, removeSkill, reset } = useSkillset();
   const [query, setQuery] = useState('');
   const [openCat, setOpenCat] = useState(null);
+  const [openSkill, setOpenSkill] = useState(null);
   const [confirmReset, setConfirmReset] = useState(false);
 
   const owned = Object.keys(state.skills);
   const byCategory = useMemo(() => {
     const groups = {};
-    for (const id of owned) (groups[skillCategory(id)] ||= []).push(id);
+    for (const id of Object.keys(state.skills)) (groups[skillCategory(id)] ||= []).push(id);
     for (const c of Object.keys(groups)) {
       groups[c].sort((a, b) => levelOf(state, b) - levelOf(state, a) || skillName(state, a).localeCompare(skillName(state, b)));
     }
@@ -29,17 +33,17 @@ export default function SkillsScreen() {
   const q = query.trim().toLowerCase();
   const hits = q
     ? Object.keys(SKILLS)
-      .filter((k) => !state.skills[k] && SKILLS[k][0].toLowerCase().includes(q))
-      .sort((a, b) => SKILLS[a][0].toLowerCase().indexOf(q) - SKILLS[b][0].toLowerCase().indexOf(q))
+      .filter((k) => !state.skills[k] && SKILLS[k].name.toLowerCase().includes(q))
+      .sort((a, b) => SKILLS[a].name.toLowerCase().indexOf(q) - SKILLS[b].name.toLowerCase().indexOf(q))
       .slice(0, 6)
     : [];
-  const exact = q && (Object.values(SKILLS).some(([n]) => n.toLowerCase() === q) || Object.values(state.custom).some((c) => c.name.toLowerCase() === q));
+  const exact = q && (Object.values(SKILLS).some((s) => s.name.toLowerCase() === q) || Object.values(state.custom).some((c) => c.name.toLowerCase() === q));
 
   const add = (id) => { addSkill(id); setQuery(''); };
   const addCustom = () => { addCustomSkill(query); setQuery(''); };
 
   return (
-    <Screen title="Skills" subtitle="Tap a number to set your level">
+    <Screen title="Skills" subtitle="Tap a skill for details, a number to set your level">
       <View style={{ gap: 8 }}>
         <Field
           value={query}
@@ -52,9 +56,9 @@ export default function SkillsScreen() {
         {q ? (
           <List>
             {hits.map((k) => (
-              <SuggestRow key={k} title={SKILLS[k][0]} meta={SKILLS[k][1]} onPress={() => add(k)} />
+              <SuggestRow key={k} title={SKILLS[k].name} meta={SKILLS[k].desc} onPress={() => add(k)} />
             ))}
-            {!exact ? <SuggestRow key="custom" title={`Add “${query.trim()}” as a new skill`} meta="Custom" onPress={addCustom} /> : null}
+            {!exact ? <SuggestRow key="custom" title={`Add “${query.trim()}” as a new skill`} meta="Custom skill" onPress={addCustom} /> : null}
           </List>
         ) : null}
       </View>
@@ -65,16 +69,16 @@ export default function SkillsScreen() {
             <T variant="label">{c}</T>
             <List>
               {byCategory[c].map((id) => (
-                <View key={id} style={{ padding: 16, gap: 12 }}>
-                  <View style={styles.row}>
-                    <View style={{ flex: 1 }}>
-                      <T variant="strong">{skillName(state, id)}</T>
-                      <T variant="small">{LEVELS[levelOf(state, id)]} · {LEVEL_HINTS[levelOf(state, id)]}</T>
-                    </View>
-                    <IconButton name="close" label={`Remove ${skillName(state, id)}`} onPress={() => removeSkill(id)} />
-                  </View>
-                  <LevelPips name={skillName(state, id)} value={levelOf(state, id)} onChange={(n) => setLevel(id, n)} />
-                </View>
+                <SkillRow
+                  key={id}
+                  id={id}
+                  name={skillName(state, id)}
+                  level={levelOf(state, id)}
+                  open={openSkill === id}
+                  onToggle={() => setOpenSkill(openSkill === id ? null : id)}
+                  onLevel={(n) => setLevel(id, n)}
+                  onRemove={() => removeSkill(id)}
+                />
               ))}
             </List>
           </View>
@@ -87,7 +91,7 @@ export default function SkillsScreen() {
         <SectionHead title="Browse by area" />
         <List>
           {CATEGORIES.filter((c) => c !== 'Other').map((c) => {
-            const available = Object.keys(SKILLS).filter((k) => SKILLS[k][1] === c && !state.skills[k]);
+            const available = Object.keys(SKILLS).filter((k) => SKILLS[k].cat === c && !state.skills[k]);
             if (!available.length) return null;
             const open = openCat === c;
             return (
@@ -106,7 +110,7 @@ export default function SkillsScreen() {
                 </Pressable>
                 {open ? (
                   <View style={[styles.chips, { paddingHorizontal: 16, paddingBottom: 16 }]}>
-                    {available.map((k) => <PickChip key={k} label={SKILLS[k][0]} onPress={() => addSkill(k)} />)}
+                    {available.map((k) => <PickChip key={k} label={SKILLS[k].name} onPress={() => addSkill(k)} />)}
                   </View>
                 ) : null}
               </View>
@@ -144,12 +148,71 @@ export default function SkillsScreen() {
   );
 }
 
+function SkillRow({ id, name, level, open, onToggle, onLevel, onRemove }) {
+  const desc = skillDescription(id);
+  const roles = open ? rolesUsingSkill(id) : [];
+  const slug = SKILLS[id] && SKILLS[id].slug;
+  return (
+    <View style={{ padding: 16, gap: 12 }}>
+      <View style={styles.row}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityState={{ expanded: open }}
+          accessibilityHint="Shows what this skill is and which roles use it"
+          onPress={onToggle}
+          style={{ flex: 1, gap: 2 }}
+        >
+          <View style={styles.row}>
+            <T variant="strong" style={{ flexShrink: 1 }}>{name}</T>
+            <Ionicons name={open ? 'chevron-up' : 'information-circle-outline'} size={18} color={colors.muted} />
+          </View>
+          <T variant="small">{LEVELS[level]} · {LEVEL_HINTS[level]}</T>
+        </Pressable>
+        <IconButton name="close" label={`Remove ${name}`} onPress={onRemove} />
+      </View>
+      <LevelPips name={name} value={level} onChange={onLevel} />
+      {open ? (
+        <View style={{ gap: 10, backgroundColor: colors.sunk, borderRadius: 14, padding: 14 }}>
+          <T style={{ fontSize: 15 }}>{desc || 'A custom skill you added.'}</T>
+          {roles.length ? (
+            <>
+              <T variant="label">Core step for</T>
+              <View style={styles.chips}>
+                {roles.map((r) => (
+                  <Pressable
+                    key={r.id}
+                    accessibilityRole="button"
+                    onPress={() => router.push(`/role/${r.id}`)}
+                    style={({ pressed }) => [{ backgroundColor: colors.accentSoft, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8 }, pressed && { opacity: 0.7 }]}
+                  >
+                    <Text style={{ fontFamily: fonts.bold, fontSize: 13, color: colors.accent }}>{r.name}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            </>
+          ) : (
+            <T variant="small">Not a core step in any tracked role yet.</T>
+          )}
+          {slug ? (
+            <Pressable accessibilityRole="link" onPress={() => Linking.openURL(roadmapUrl(slug)).catch(() => {})} style={styles.row}>
+              <Ionicons name="open-outline" size={16} color={colors.accent} />
+              <Text style={{ fontFamily: fonts.bold, fontSize: 14, color: colors.accent }}>roadmap.sh/{slug}</Text>
+            </Pressable>
+          ) : null}
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
 function SuggestRow({ title, meta, onPress }) {
   return (
     <Pressable onPress={onPress} style={({ pressed }) => [styles.item, { minHeight: 56 }, pressed && { backgroundColor: colors.raised }]}>
       <Ionicons name="add-circle" size={22} color={colors.accent} />
-      <T variant="strong" style={{ flex: 1 }}>{title}</T>
-      <T variant="small">{meta}</T>
+      <View style={{ flex: 1, gap: 2 }}>
+        <T variant="strong">{title}</T>
+        <T variant="small" numberOfLines={1}>{meta}</T>
+      </View>
     </Pressable>
   );
 }
