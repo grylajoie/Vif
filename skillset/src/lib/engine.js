@@ -4,9 +4,15 @@ import {
 } from '../data/catalog.js';
 
 export const skillName = (state, id) =>
-  (SKILLS[id] && SKILLS[id][0]) || (state.custom[id] && state.custom[id].name) || id;
+  (SKILLS[id] && SKILLS[id].name) || (state.custom[id] && state.custom[id].name) || id;
 
-export const skillCategory = (id) => (SKILLS[id] && SKILLS[id][1]) || 'Other';
+export const skillCategory = (id) => (SKILLS[id] && SKILLS[id].cat) || 'Other';
+
+export const skillDescription = (id) => (SKILLS[id] && SKILLS[id].desc) || null;
+
+// Roles that list this skill (or an alternative containing it) as a core step.
+export const rolesUsingSkill = (id) =>
+  ROLES.filter((r) => r.req.some((q) => q.w === 3 && q.ids.includes(id)));
 
 export const levelOf = (state, id) => state.skills[id] || 0;
 
@@ -61,9 +67,13 @@ export function matchTier(pct) {
   return { key: 'far', label: 'Long shot' };
 }
 
-// Biggest weighted shortfall first.
+// Core gaps in roadmap order, then supporting gaps by size of shortfall.
 export const gapsOf = (items) =>
-  items.filter((i) => i.cur < i.lvl).sort((a, b) => b.w * (b.lvl - b.cur) - a.w * (a.lvl - a.cur));
+  items.filter((i) => i.cur < i.lvl).sort((a, b) => {
+    if (a.w !== b.w) return b.w - a.w;
+    if (a.step && b.step) return a.step - b.step;
+    return (b.lvl - b.cur) - (a.lvl - a.cur);
+  });
 
 export const requirementName = (state, item) =>
   item.cur > 0 || item.ids.length === 1
