@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { ROLE_BY_ID, ROLES, SKILLS } from '../data/catalog.js';
 import {
-  evaluateRole, gapsOf, levelForXp, planTextFor, progress, rankRoles, xpForLevel,
+  creditFor, evaluateRole, gapsOf, levelForXp, planTextFor, progress, rankRoles, xpForLevel,
 } from './engine.js';
 
 const make = (skills = {}) => ({ skills, custom: {}, plan: [], log: [], goal: null });
@@ -66,4 +66,12 @@ test('gaps follow roadmap order: core steps first, in sequence', () => {
 test('frontend skills rank frontend-ish roles first', () => {
   const top = rankRoles(make({ js: 4, ts: 3, html_css: 4, react: 4, a11y: 3, web_perf: 3 }))[0];
   assert.equal(top.role.id, 'frontend');
+});
+
+test('knowing a skill earns most of the credit', () => {
+  assert.equal(creditFor(0, 4), 0);
+  assert.equal(creditFor(4, 4), 1);
+  assert.equal(creditFor(5, 3), 1);
+  assert.ok(creditFor(3, 4) >= 0.8);
+  assert.ok(creditFor(1, 4) < creditFor(3, 4));
 });

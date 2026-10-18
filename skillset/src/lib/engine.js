@@ -37,6 +37,10 @@ export function progress(state) {
   return { xp, level, title: titleForLevel(level), toNext: hi - xp, pct: (xp - lo) / (hi - lo) };
 }
 
+// Knowing a skill at all earns most of the credit; reaching the target level earns the rest.
+// So "I know React" (Working) against a Strong target still counts 85%.
+export const creditFor = (cur, target) => (cur <= 0 ? 0 : Math.min(1, 0.4 + (0.6 * cur) / target));
+
 export function evaluateRole(state, role) {
   let total = 0;
   let earned = 0;
@@ -50,7 +54,7 @@ export function evaluateRole(state, role) {
       }
     }
     total += req.w;
-    earned += req.w * Math.min(cur / req.lvl, 1);
+    earned += req.w * creditFor(cur, req.lvl);
     return { ...req, cur, best };
   });
   return { pct: Math.round((100 * earned) / total), items };

@@ -1,29 +1,24 @@
 import { View } from 'react-native';
-import { QUICK_PICKS } from '../data/catalog.js';
-import { skillName } from '../lib/engine.js';
+import { router } from 'expo-router';
 import { useSkillset } from '../state/SkillsetProvider';
-import { BigButton, Card, PickChip, T, styles } from './ui';
+import { BigButton, Card, T } from './ui';
 
-// Shown while the profile is empty: one tap per known skill, or a sample profile.
+// Empty-state call to action: the fastest path from "nothing" to role matches.
 export default function QuickStart({ note }) {
-  const { state, addSkill, removeSkill, loadSample } = useSkillset();
+  const { loadSample } = useSkillset();
   return (
-    <Card style={{ gap: 14 }}>
-      <View style={{ gap: 4 }}>
-        <T variant="h3">Tap what you already know</T>
+    <Card style={{ gap: 14, padding: 20 }}>
+      <View style={{ gap: 6 }}>
+        <T variant="h2">See which roles fit you</T>
         <T variant="muted">{note}</T>
       </View>
-      <View style={styles.chips}>
-        {QUICK_PICKS.map((id) => (
-          <PickChip
-            key={id}
-            label={skillName(state, id)}
-            on={!!state.skills[id]}
-            onPress={() => (state.skills[id] ? removeSkill(id) : addSkill(id))}
-          />
-        ))}
+      <View style={{ gap: 6 }}>
+        <T>• Paste a list like “React, Node, Docker”</T>
+        <T>• Or start from a role you already do</T>
+        <T>• Or tap the skills you know</T>
       </View>
-      <BigButton title="Load example skills" icon="sparkles" variant="soft" onPress={loadSample} />
+      <BigButton title="Add what I know" icon="flash" onPress={() => router.push('/know')} />
+      <BigButton title="Try with example skills" variant="soft" size="md" onPress={loadSample} />
     </Card>
   );
 }

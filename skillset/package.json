@@ -27,7 +27,7 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "test": "node --test src/lib/engine.test.mjs",
+    "test": "node --test src/lib/*.test.mjs",
     "export:web": "expo export --platform web"
   },
   "private": true

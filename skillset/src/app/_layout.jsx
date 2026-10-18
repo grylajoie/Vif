@@ -36,6 +36,7 @@ export default function RootLayout() {
           <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.bg } }}>
             <Stack.Screen name="(tabs)" />
             <Stack.Screen name="role/[id]" options={{ presentation: 'modal' }} />
+            <Stack.Screen name="know" options={{ presentation: 'modal' }} />
           </Stack>
           <Toast />
           <StatusBar style="light" />
@@ -50,7 +51,7 @@ function Toast() {
   const insets = useSafeAreaInsets();
   if (!toast) return null;
   return (
-    <View pointerEvents="none" style={[styles.toastWrap, { bottom: insets.bottom + 96 }]}>
+    <View pointerEvents="none" style={[styles.toastWrap, { top: insets.top + 12 }]}>
       <View style={styles.toast}><Text style={styles.toastText}>{toast}</Text></View>
     </View>
   );

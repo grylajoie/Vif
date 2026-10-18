@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { View } from 'react-native';
+import { router } from 'expo-router';
 import LevelCard from '../../components/LevelCard';
 import QuickStart from '../../components/QuickStart';
 import RoleCard from '../../components/RoleCard';
@@ -17,7 +18,7 @@ export default function RolesScreen() {
       <Screen>
         <LevelCard />
         <SectionHead title="Specializations" />
-        <QuickStart note="Your best-matching specializations appear here as soon as you add a few skills." />
+        <QuickStart note="Tell us what you know in under a minute. No need to rate anything." />
       </Screen>
     );
   }
@@ -31,6 +32,7 @@ export default function RolesScreen() {
   return (
     <Screen>
       <LevelCard />
+      <BigButton title="Add what I know" icon="flash" variant="soft" onPress={() => router.push('/know')} />
       {goal ? (
         <View style={{ gap: 10 }}>
           <T variant="label">Your goal</T>
@@ -56,7 +58,7 @@ export default function RolesScreen() {
           {showAll ? others.map((entry) => <RoleCard key={entry.role.id} entry={entry} />) : null}
         </View>
       ) : null}
-      <T variant="small">Specializations follow the role roadmaps on roadmap.sh. Core skills count 3×, supporting skills 1×, and a skill counts fully once it reaches the target level.</T>
+      <T variant="small">Specializations follow the role roadmaps on roadmap.sh. Knowing a skill earns most of its credit; reaching the role's target level earns the rest. Core skills count 3× supporting ones.</T>
     </Screen>
   );
 }
