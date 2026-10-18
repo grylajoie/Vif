@@ -38,6 +38,14 @@ test('meeting every target gives 100% and no gaps', () => {
   assert.equal(gapsOf(ev.items).length, 0);
 });
 
+test('every skill has a description and every role has notes on all core steps', () => {
+  for (const [id, sk] of Object.entries(SKILLS)) assert.ok(sk.desc && sk.desc.length < 120, `${id} description`);
+  for (const role of ROLES) {
+    assert.ok(role.slug, `${role.id} roadmap slug`);
+    for (const req of role.req.filter((r) => r.w === 3)) assert.ok(req.note, `${role.id} step ${req.step} note`);
+  }
+});
+
 test('alternatives count with the best one the user has', () => {
   const ev = evaluateRole(make({ go: 4 }), ROLE_BY_ID.backend);
   const lang = ev.items.find((i) => i.ids.includes('go'));
@@ -45,10 +53,13 @@ test('alternatives count with the best one the user has', () => {
   assert.equal(lang.cur, 4);
 });
 
-test('core gaps rank ahead of supporting gaps of the same size', () => {
-  const s = make();
-  const gaps = gapsOf(evaluateRole(s, ROLE_BY_ID.data_sci).items);
+test('gaps follow roadmap order: core steps first, in sequence', () => {
+  const s = make({ internet: 2 });
+  const gaps = gapsOf(evaluateRole(s, ROLE_BY_ID.frontend).items);
+  const core = gaps.filter((g) => g.w === 3);
   assert.equal(gaps[0].w, 3);
+  assert.deepEqual(core.map((g) => g.step), [...core.map((g) => g.step)].sort((a, b) => a - b));
+  assert.equal(core[0].ids[0], 'html_css');
   assert.match(planTextFor(s, gaps[0]), /^Get .+ to \w+ \(Lv \d\)$/);
 });
 

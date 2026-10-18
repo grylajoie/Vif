@@ -119,7 +119,7 @@ export function SkillsetProvider({ children }) {
       if (!name) return;
       const lower = name.toLowerCase();
       const s = stateRef.current;
-      const known = Object.keys(SKILLS).find((k) => SKILLS[k][0].toLowerCase() === lower)
+      const known = Object.keys(SKILLS).find((k) => SKILLS[k].name.toLowerCase() === lower)
         || Object.keys(s.custom).find((k) => s.custom[k].name.toLowerCase() === lower);
       if (known) {
         if (!s.skills[known]) dispatch({ type: 'setLevel', id: known, level: 2 });
