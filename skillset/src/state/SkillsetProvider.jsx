@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { LEVELS, ROLE_BY_ID, SAMPLE_SKILLS, SKILLS } from '../data/catalog.js';
+import { KNOWN_LEVEL, LEVELS, ROLE_BY_ID, SAMPLE_SKILLS, SKILLS } from '../data/catalog.js';
 import { skillName } from '../lib/engine.js';
 
 const STORAGE_KEY = 'skillset.v1';
@@ -31,11 +31,17 @@ function reducer(state, action) {
       else skills[action.id] = action.level;
       return { ...state, skills };
     }
+    case 'addMany': {
+      // Never lowers a level the user already set.
+      const skills = { ...state.skills };
+      for (const id of action.ids) if (!skills[id]) skills[id] = KNOWN_LEVEL;
+      return { ...state, skills };
+    }
     case 'addCustom':
       return {
         ...state,
         custom: { ...state.custom, [action.id]: { name: action.name } },
-        skills: { ...state.skills, [action.id]: 2 },
+        skills: { ...state.skills, [action.id]: KNOWN_LEVEL },
       };
     case 'addSteps': {
       const existing = new Set(state.plan.filter((p) => !p.done).map((p) => p.text));
@@ -107,8 +113,27 @@ export function SkillsetProvider({ children }) {
     setLevel: (id, level) => dispatch({ type: 'setLevel', id, level }),
     addSkill: (id) => {
       if (stateRef.current.skills[id]) return;
-      dispatch({ type: 'setLevel', id, level: 2 });
-      notify(`Added ${skillName(stateRef.current, id)}`);
+      dispatch({ type: 'setLevel', id, level: KNOWN_LEVEL });
+    },
+    toggleSkill: (id) => {
+      dispatch({ type: 'setLevel', id, level: stateRef.current.skills[id] ? 0 : KNOWN_LEVEL });
+    },
+    addSkills: (ids, message) => {
+      const fresh = ids.filter((id) => !stateRef.current.skills[id]);
+      if (!fresh.length) { notify('Already in your skills'); return; }
+      dispatch({ type: 'addMany', ids: fresh });
+      notify(message || `Added ${fresh.length} skill${fresh.length === 1 ? '' : 's'}`);
+    },
+    // Adds a role's core skills; for "a or b" steps it keeps one the user already has, else the first.
+    addRoleSkills: (roleId) => {
+      const role = ROLE_BY_ID[roleId];
+      if (!role) return [];
+      const s = stateRef.current;
+      const ids = role.req.filter((r) => r.w === 3).map((r) => r.ids.find((i) => s.skills[i]) || r.ids[0]);
+      const fresh = ids.filter((id) => !s.skills[id]);
+      if (fresh.length) dispatch({ type: 'addMany', ids: fresh });
+      notify(fresh.length ? `Added ${fresh.length} ${role.name} skills` : 'You already have these');
+      return fresh;
     },
     removeSkill: (id) => {
       notify(`Removed ${skillName(stateRef.current, id)}`);
@@ -122,7 +147,7 @@ export function SkillsetProvider({ children }) {
       const known = Object.keys(SKILLS).find((k) => SKILLS[k].name.toLowerCase() === lower)
         || Object.keys(s.custom).find((k) => s.custom[k].name.toLowerCase() === lower);
       if (known) {
-        if (!s.skills[known]) dispatch({ type: 'setLevel', id: known, level: 2 });
+        if (!s.skills[known]) dispatch({ type: 'setLevel', id: known, level: KNOWN_LEVEL });
         notify(`Added ${skillName(s, known)}`);
         return;
       }
